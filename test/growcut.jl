@@ -54,7 +54,7 @@
     clicks[128, 29]=2
     clicks[127, 115]=2
     clicks[46, 137]=2
-    l=segment_image(GrowCut(),img,clicks,9,9)
+    l=segment_image(GrowCut(),img,clicks,8,8)
 
     @test l[55, 50] == 1
     @test l[87, 13] == 1
