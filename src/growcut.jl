@@ -90,8 +90,8 @@ function segment_image(Algorithm::GrowCut,imgIn::AbstractArray{T} where T <: RGB
     regions=maximum(label)
     iter = 0
     count = length(img)
-    changed=Array{Tuple{UnitRange{Int64},UnitRange{Int64}},1}(undef,1)
-    changedₜ₊₁=Array{Tuple{UnitRange{Int64},UnitRange{Int64}},1}(undef,0)
+    changed=Array{Tuple{UnitRange{Int},UnitRange{Int}},1}(undef,1)
+    changedₜ₊₁=Array{Tuple{UnitRange{Int},UnitRange{Int}},1}(undef,0)
     changed[1]=1:size(img)[1],1:size(img)[2]
 
     #iterate till convergance or maximum iterations reached
