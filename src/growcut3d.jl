@@ -1,4 +1,4 @@
-function segment_image(Algorithm::GrowCut,imgIn::AbstractArray{T,2} where T <: RGB, label::Array{Int}, t1::Int=9, t2::Int=9; max_iter::Int=1000, converge_at::Int=1)
+function segment_image(Algorithm::GrowCut3,imgIn::AbstractArray{T,3} where T <: RGB, label::Array{Int}, t1::Int=9, t2::Int=9; max_iter::Int=1000, converge_at::Int=1)
     #initilize values
     img=RGB{Float64}.(imgIn)
     maxC = find_maxC(img)
@@ -11,12 +11,12 @@ function segment_image(Algorithm::GrowCut,imgIn::AbstractArray{T,2} where T <: R
     regions=maximum(label)
     iter = 0
     count = length(img)
-    changed=Array{Tuple{UnitRange{Int},UnitRange{Int}},1}(undef,1)
-    changedₜ₊₁=Array{Tuple{UnitRange{Int},UnitRange{Int}},1}(undef,0)
-    changed[1]=1:size(img)[1],1:size(img)[2]
+    changed=Array{Tuple{UnitRange{Int},UnitRange{Int},UnitRange{Int}},1}(undef,1)
+    changedₜ₊₁=Array{Tuple{UnitRange{Int},UnitRange{Int},UnitRange{Int}},1}(undef,0)
+    changed[1]=1:size(img)[1],1:size(img)[2],1:size(img)[3]
 
     #iterate till convergance or maximum iterations reached
-    while count>converge_at && iter < max_iter
+    while count > converge_at && iter < max_iter
         iter+=1
         count = 0
         copyto!(θₜ₊₁,θ)
@@ -26,7 +26,7 @@ function segment_image(Algorithm::GrowCut,imgIn::AbstractArray{T,2} where T <: R
         #loop through active pixel neighbourhoods (all pixels on first iteration)
         for j in CartesianIndices(changed)
             @inbounds for i in CartesianIndices(changed[j])
-                Nbound=max(i[1]-1,1):min(i[1]+1,axes(img)[1][end]),max(i[2]-1,1):min(i[2]+1,axes(img)[2][end])
+                Nbound=max(i[1]-1,1):min(i[1]+1,axes(img)[1][end]),max(i[2]-1,1):min(i[2]+1,axes(img)[2][end]),max(i[3]-1,1):min(i[3]+1,axes(img)[3][end])
                 Eₜ₊₁[i]=count_enemy(l,i,Nbound)
                 if Eₜ₊₁[i] < t2
                     θₜ₊₁,lₜ₊₁,count,changedₜ₊₁=update_pixel(θ,θₜ₊₁,l,lₜ₊₁,img,E,i,maxC,t1,count,Nbound,changedₜ₊₁)
