@@ -17,8 +17,6 @@ export
 	# main functions
 	segment_image,
 	set_seed_pixels,
-	set_seed_pixels3,
 	GrowCut,
-	GrowCut3,
-	change
+	display_3d
 end # module

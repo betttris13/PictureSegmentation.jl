@@ -1,4 +1,4 @@
-function segment_image(Algorithm::GrowCut3,imgIn::AbstractArray{T,3} where T <: RGB, label::Array{Int}, t1::Int=9, t2::Int=9; max_iter::Int=1000, converge_at::Int=1)
+function segment_image(Algorithm::GrowCut,imgIn::AbstractArray{T,3} where T <: RGB, label::Array{Int}, t1::Int=27, t2::Int=27; max_iter::Int=1000, converge_at::Int=1)
     #initilize values
     img=RGB{Float64}.(imgIn)
     maxC = find_maxC(img)
@@ -18,6 +18,7 @@ function segment_image(Algorithm::GrowCut3,imgIn::AbstractArray{T,3} where T <: 
     #iterate till convergance or maximum iterations reached
     while count > converge_at && iter < max_iter
         iter+=1
+        @show iter, count
         count = 0
         copyto!(θₜ₊₁,θ)
         copyto!(lₜ₊₁,l)
@@ -37,7 +38,7 @@ function segment_image(Algorithm::GrowCut3,imgIn::AbstractArray{T,3} where T <: 
         end
 
         #update values
-        changed=changedₜ₊₁
+        #changed=changedₜ₊₁
         changedₜ₊₁=similar(changedₜ₊₁,0)
         E=Eₜ₊₁
         θ=θₜ₊₁
