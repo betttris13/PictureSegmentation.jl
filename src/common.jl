@@ -1,78 +1,134 @@
 #function used for adjusting strength of pixel
-function g(x,maxC)
-    return 1-(x/maxC)
+function g(x, maxRGB)
+    return 1 - (x / maxRGB)
 end
 
 #find maximum colour vector
-function find_maxC(img)
-    maxC = 0
-    for i in CartesianIndices(img)
-        C = sqrt(img[i].r^2 + img[i].g^2  + img[i].b^2)
-        if C > maxC
-            maxC = C
+function find_maxRGB(feature_vector)
+    maxRGB = 0
+    for i in CartesianIndices(feature_vector)
+        current_RGB = sqrt(feature_vector[i].r^2 + feature_vector[i].g^2  + feature_vector[i].b^2)
+        if current_RGB > maxRGB
+            maxRGB = current_RGB
         end
     end
-    return maxC
+    return maxRGB
 end
 
-function count_enemy(Nl,target_pixel::CartesianIndex,NBound)
+function count_enemy(l, target_pixel::CartesianIndex, NBound)
     num_enemy = 0
     @inbounds for j in CartesianIndices(NBound)
-         if j != CartesianIndex(target_pixel) && Nl[j]!=Nl[target_pixel] && Nl[j]!=0
-            num_enemy+=1
+         if j != CartesianIndex(target_pixel) && l[j] != l[target_pixel] && l[j] != 0
+            num_enemy += 1
         end
     end
     return num_enemy
 end
 
+#default rule for GrowCut() uses decreasing function and relative difference in
+#colour to adjust strengths.
+function colour_diff(θ, feature_vector, target_pixel::CartesianIndex, attacking_pixel::CartesianIndex, extras)
+    Cdiff = feature_vector[target_pixel] - feature_vector[attacking_pixel]
+    absCdiff = sqrt(Cdiff.r^2 + Cdiff.g^2 + Cdiff.b^2)
+    adjusted_strength = g(absCdiff, extras) * θ[attacking_pixel]
+    return adjusted_strength
+end
+
 #std update of pixel
-function update_pixel(Nθ,Nθₜ₊₁,Nl,Nlₜ₊₁,Nimg,NE,target_pixel::CartesianIndex,maxC,t1,count,Nbound,changedₜ₊₁)
+function update_pixel(θ, θₜ₊₁, l, lₜ₊₁, feature_vector, E, target_pixel::CartesianIndex, extras, t1, count, Nbound, changedₜ₊₁, calculate_adjusted_strength)
     @inbounds for j in CartesianIndices(Nbound)
-        Cdiff=Nimg[target_pixel]-Nimg[j]
-        absCdiff=sqrt(Cdiff.r^2+Cdiff.g^2+Cdiff.b^2)
-        adjusted_strenth = g(absCdiff,maxC)*Nθ[j]
+        adjusted_strength = calculate_adjusted_strength(θ, feature_vector, target_pixel, j, extras)
         change = false
-        if adjusted_strenth>Nθ[target_pixel] && NE[j]<t1 && j != target_pixel
-            Nlₜ₊₁[target_pixel]=Nl[j]
-            Nθₜ₊₁[target_pixel]=adjusted_strenth
-            count +=1
+        if adjusted_strength > θ[target_pixel] && E[j] < t1 && j != target_pixel
+            lₜ₊₁[target_pixel] = l[j]
+            θₜ₊₁[target_pixel] = adjusted_strength
+            count += 1
             if change == false
-                push!(changedₜ₊₁,Nbound)
+                push!(changedₜ₊₁, Nbound)
                 change = true
             end
         end
     end
-    return Nθₜ₊₁,Nlₜ₊₁,count,changedₜ₊₁
+    return θₜ₊₁, lₜ₊₁, count, changedₜ₊₁
 end
 
-#update of pixel if sorounded by to many enemies
-function occupy_pixel(Nθ,Nθₜ₊₁,Nl,Nlₜ₊₁,Nimg,target_pixel::CartesianIndex,maxC,count,Nbound,changedₜ₊₁)
+#update of pixel if surrounded by too many enemies
+function occupy_pixel(θ, θₜ₊₁, l, lₜ₊₁, feature_vector, target_pixel::CartesianIndex, extras, count, Nbound, changedₜ₊₁, calculate_adjusted_strength)
     θtemp = 1.0
-    imgtemp = Nimg[target_pixel]
-    ltemp = Nl[target_pixel]
+    location = target_pixel
+    ltemp = l[target_pixel]
     @inbounds for j in CartesianIndices(Nbound)
-        if j != target_pixel && Nθ[j] < θtemp && Nl[j] != Nl[target_pixel]
-            θtemp = Nθ[j]
-            imgtemp = Nimg[j]
-            ltemp = Nl[j]
+        if j != target_pixel && θ[j] < θtemp && l[j] != l[target_pixel]
+            θtemp = θ[j]
+            location = j
         end
     end
-    Cdiff=Nimg[target_pixel]-imgtemp
-    absCdiff=sqrt(Cdiff.r^2+Cdiff.g^2+Cdiff.b^2)
-    Nθₜ₊₁[target_pixel]=g(absCdiff,maxC)*θtemp
-    Nlₜ₊₁[target_pixel]=ltemp
-    count+=1
-    push!(changedₜ₊₁,Nbound)
-    return Nθₜ₊₁,Nlₜ₊₁,count,changedₜ₊₁
+    θₜ₊₁[target_pixel] = calculate_adjusted_strength(θ, feature_vector, target_pixel, location, extras)
+    lₜ₊₁[target_pixel] = l[location]
+    count += 1
+    push!(changedₜ₊₁, Nbound)
+    return θₜ₊₁, lₜ₊₁, count, changedₜ₊₁
 end
 
 #sets initial strengths
 function set_strength(label)
-    θ = zeros(Float64,axes(label))
+    θ = zeros(Float64, axes(label))
     for i in CartesianIndices(label)
-        if label[i]>0
-            θ[i]=1.0
+        if label[i] > 0
+            θ[i] = 1.0
         end
     end
     return θ
+end
+
+"""
+```
+help_rule_template()
+```
+
+Outputs template for a new rule into the REPL.
+
+"""
+function help_rule_template()
+    println("function your_rule(strengths::Array{Float64,1}, [your feature_vector]::AbstractArray, target_pixel::CartesianIndex, attacking_pixel::CartesianIndex, [your additional_values]::Any)")
+    println("   #your rule goes here")
+    println("   return adjusted_strength")
+    println("end")
+    println("")
+    println("function your_extra_stuff([your feature_vector]::AbstractArray")
+    println("   #your calculations for any additional values goes here")
+    println("   #if you need more then one value they can be in an array or wrapped into a tuple")
+    println("   return additional_values")
+    println("end")
+    println("")
+    println("Use create_rule() to print to new file")
+end
+
+"""
+```
+create_rule(file::AbstractString="newrule.jl")
+```
+
+Outputs template for a new rule into a file.
+
+# Arguments
+
+The function arguments are described in more detail below.
+
+##  `name_of_rule`
+An `AbstractString` specifying the file to put the function in. Note: this can
+override file contents, recomended to create a new file.
+
+"""
+function create_rule(file::AbstractString="newrule.jl")
+    write(file,"function your_rule(strengths::Array{Float64,1}, [your feature_vector]::AbstractArray, target_pixel::CartesianIndex, attacking_pixel::CartesianIndex, [your additional_values]::Any)\n",
+    "   #your rule goes here\n",
+    "   return adjusted_strength\n",
+    "end\n",
+    "\n",
+    "function your_extra_stuff([your feature_vector]::AbstractArray\n",
+    "   #your calculations for any additional values goes here\n",
+    "   #if you need more then one value they can be in an array or wrapped into a tuple\n",
+    "   return additional_values\n",
+    "end")
 end

@@ -1,5 +1,5 @@
 @testset "growcut" begin
-    test = zeros(RGB,100,100)
+    test = zeros(RGB{Float64},100,100)
     for i = 25:50
         for j = 25:50
             test[i,j]=RGB(1,0,0)
@@ -29,7 +29,7 @@
     @test l[30,30] == 4
 
     img = testimage("toucan")
-    img = RGB.(img)
+    img = RGB{Float64}.(img)
     clicks = zeros(Int,axes(img))
     clicks[16, 104]=1
     clicks[67, 66]=1
@@ -60,4 +60,15 @@
     @test l[87, 13] == 1
     @test l[107, 54] == 2
     @test l[105, 153] == 2
+
+    mask = make_contour(l)
+    @test maximum(mask) == 1
+    @test minimum(mask) == 0
+
+    img2 = convert_labels(mask)
+    @test img2[1,1] == RGB{Float64}(0.5,1.0,0.0)
+    @test img2[20,20] == RGB{Float64}(0.5,1.0,0.0)
+    @test img2[42,24] == RGB{Float64}(0.5,1.0,0.0)
+    @test img2[21,11] == RGB{Float64}(0.5,1.0,0.0)
+    @test img2[101,42] == RGB{Float64}(0.5,1.0,0.0)
 end
